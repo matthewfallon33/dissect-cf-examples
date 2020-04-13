@@ -36,20 +36,19 @@ public class Solution extends VirtualInfrastructure {
 	public void tick(long fires) {
 		// Regular operation, the actual "autoscaler"
 
-		// Determining if we need to get rid of a VM:
+		// Iterating through the different application types
 		Iterator<String> kinds = vmSetPerKind.keySet().iterator();
 		while (kinds.hasNext()) {
 			String kind = kinds.next();
 			ArrayList<VirtualMachine> vmset = vmSetPerKind.get(kind);
-			// Determining if we need a brand new kind of VM:
-			// System.out.println("VMs for Kind: " + kind + " = " + vmset.size());
+			// Determining if we need a brand new VM for the application
 			if (vmset.isEmpty()) {
-				// No VM with this kind yet, we need at least one for each so let's create one
+				// Application has no VMs, we need at least one for each so let's create one
 				requestVM(kind);
 				continue;
 			} else if (vmset.size() == 1) {
 				final VirtualMachine onlyMachine = vmset.get(0);
-				// We will try to not destroy the last VM from any kind
+//				there is only one VM left, so we will give it one hour to become active before deleting it
 				if (onlyMachine.underProcessing.isEmpty() && onlyMachine.toBeAdded.isEmpty()) {
 					// It has no ongoing computation
 					Integer i = unnecessaryHits.get(onlyMachine);
@@ -75,25 +74,18 @@ public class Solution extends VirtualInfrastructure {
 				// Now we allow the check if we need more VMs.
 			} else {
 				// remove all underutilized machines
-				// boolean destroyed = false;
 				for (int i = 0; i < vmset.size(); i++) {
 					final VirtualMachine vm = vmset.get(i);
 					if (vm.underProcessing.isEmpty() && vm.toBeAdded.isEmpty()) {
-						// The VM has no task on it at the moment, good candidate
+						// The VM has no task on it at the moment, good candidate for deletion
 						if (getHourlyUtilisationPercForVM(vm) < 0.20) {
 							// The VM is idle and underutilised over the past hour so makes sense to delete
-							// it
 							destroyVM(vm);
-							// destroyed = true;
 							// decrement i seeing that vmset size has been decreased
 							i--;
 						}
 					}
 				}
-				// if (destroyed) {
-				// // Just destroyed a VM to re-balance utilization, no need to add any
-				// continue;
-				// }
 			}
 			// We need to check if we need more VMs than we have at the moment
 			double subHourUtilSum = 0;
@@ -104,8 +96,6 @@ public class Solution extends VirtualInfrastructure {
 			// working out average VM utilisation of the cluster
 			double averageVMUtilization = subHourUtilSum / vmset.size();
 			double adjustmentRate = 0;
-			// for performance logging
-			perTickUtilizations.add(averageVMUtilization);
 
 			System.out.println("");
 
@@ -115,32 +105,31 @@ public class Solution extends VirtualInfrastructure {
 			 * Utilization back to below 60%
 			 */
 
-			// so if there are no neededVMs we need to check if we might need VMs
-			// should make a calculate adjustment rate method to make this cleaner
+			// Determining adjustment rate based off utilization ranges
 			System.out.println("Cluster Utilizationn: " + averageVMUtilization);
 			if (averageVMUtilization > 0.60 && averageVMUtilization < 0.69) {
 				// increase cluster size by 20%
-				System.out.println("Between 60 and 69");
+//				System.out.println("Between 60 and 69");
 				adjustmentRate = 1.20;
 			}
 			if (averageVMUtilization > 0.70 && averageVMUtilization < 0.79) {
 				// increase cluster size by 40%
-				System.out.println("Between 70 and 79");
+//				System.out.println("Between 70 and 79");
 				adjustmentRate = 1.40;
 			}
 			if (averageVMUtilization > 0.80 && averageVMUtilization < 0.90) {
 				// increase cluster size by 60%
-				System.out.println("Between 80 and 90");
+//				System.out.println("Between 80 and 90");
 				adjustmentRate = 1.60;
 			}
 			if (averageVMUtilization > 0.90) {
 				// increase cluster size by 60%
-				System.out.println("Over 90!");
+//				System.out.println("Over 90!");
 				adjustmentRate = 1.80;
 			}
 
 			if (adjustmentRate <= 0) {
-				System.out.println("CPU Utilization within 20 to 60");
+//				System.out.println("CPU Utilization within 20 to 60");
 				// UP scaling thresholds not exceeded utilisation is where it should be
 				continue;
 			}
@@ -153,7 +142,6 @@ public class Solution extends VirtualInfrastructure {
 			for (int i = 0; i <= vmsNeeded; i++) {
 				System.out.println("Requesting VM " + i);
 				requestVM(kind);
-				// requestVM method not actually creating as many VMs as we need
 			}
 
 		}
